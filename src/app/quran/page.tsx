@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { getSurahs, getVersesBySurah, Surah, Verse } from '@/services/quranService';
 import { supabase } from '@/utils/supabase';
+import { useSearchParams } from 'next/navigation';
 
 export default function QuranPage() {
+  const searchParams = useSearchParams();
   const [surahs, setSurahs] = useState<Surah[]>([]);
   const [selectedSurah, setSelectedSurah] = useState<Surah | null>(null);
   const [verses, setVerses] = useState<Verse[]>([]);
@@ -16,6 +18,32 @@ export default function QuranPage() {
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [showCreateBasket, setShowCreateBasket] = useState(false);
   const [newBasketName, setNewBasketName] = useState('');
+  const [basketVerses, setBasketVerses] = useState<Record<string, Set<string>>>({});
+
+  // Récupérer l'ID du panier à partir des paramètres d'URL
+  useEffect(() => {
+    const basketId = searchParams.get('basket');
+    if (basketId) {
+      setSelectedBasket(basketId);
+    }
+  }, [searchParams]);
+
+  // Mettre en place une vérification pour stocker le panier sélectionné dans localStorage
+  useEffect(() => {
+    if (selectedBasket) {
+      localStorage.setItem('verses_selected_basket', selectedBasket);
+    }
+  }, [selectedBasket]);
+
+  // Récupérer le panier précédemment sélectionné lors du chargement initial si aucun panier n'est spécifié dans l'URL
+  useEffect(() => {
+    if (!searchParams.get('basket')) {
+      const savedBasket = localStorage.getItem('verses_selected_basket');
+      if (savedBasket) {
+        setSelectedBasket(savedBasket);
+      }
+    }
+  }, [searchParams]);
 
   // Fetch surahs on component mount
   useEffect(() => {
@@ -48,6 +76,54 @@ export default function QuranPage() {
     fetchUserBaskets();
   }, []);
 
+  // Récupérer TOUS les versets de TOUS les paniers de l'utilisateur
+  useEffect(() => {
+    if (userBaskets.length === 0) return;
+    
+    const fetchAllBasketVerses = async () => {
+      try {
+        console.log("Chargement des versets pour tous les paniers...");
+        
+        // Initialiser un nouvel objet pour stocker tous les versets de tous les paniers
+        const allBasketsVerses: Record<string, Set<string>> = {};
+        
+        // Pour chaque panier, récupérer ses versets
+        for (const basket of userBaskets) {
+          const { data: versesData, error } = await supabase
+            .from('basket_verses')
+            .select('*')
+            .eq('basket_id', basket.id);
+            
+          if (error) {
+            console.error(`Erreur lors de la récupération des versets du panier ${basket.id}:`, error);
+            continue; // Passer au panier suivant en cas d'erreur
+          }
+          
+          // Créer un Set des identifiants de versets pour une recherche O(1)
+          const versesInBasket = new Set<string>();
+          (versesData || []).forEach(verse => {
+            const verseKey = `${verse.surah_id}:${verse.verse_number}`;
+            versesInBasket.add(verseKey);
+          });
+          
+          console.log(`${versesInBasket.size} versets trouvés dans le panier ${basket.id} (${basket.name})`, 
+            Array.from(versesInBasket).join(', '));
+          
+          // Ajouter ce panier et ses versets à l'objet global
+          allBasketsVerses[basket.id] = versesInBasket;
+        }
+        
+        // Mettre à jour l'état avec tous les versets de tous les paniers
+        setBasketVerses(allBasketsVerses);
+        
+      } catch (error) {
+        console.error('Error fetching all basket verses:', error);
+      }
+    };
+    
+    fetchAllBasketVerses();
+  }, [userBaskets]); // Déclencher cette effet quand la liste des paniers change
+
   const handleSurahSelect = async (surah: Surah) => {
     setSelectedSurah(surah);
     setLoadingVerses(true);
@@ -78,18 +154,52 @@ export default function QuranPage() {
       // Extraire le numéro de verset de verse_key (format "1:1")
       const verseNumber = parseInt(verse.verse_key.split(':')[1]);
       
-      // Check if verse already exists in the basket
-      const { data: existingVerse } = await supabase
-        .from('basket_verses')
-        .select('*')
-        .eq('basket_id', selectedBasket)
-        .eq('surah_id', verse.surah_id || 0) // Utiliser 0 comme valeur par défaut si undefined
-        .eq('verse_number', verseNumber)
-        .single();
-
-      if (existingVerse) {
-        setMessage({ text: 'Ce verset est déjà dans le panier sélectionné', type: 'error' });
-        setTimeout(() => setMessage(null), 3000);
+      // Vérifier si le verset est déjà dans LE PANIER SÉLECTIONNÉ
+      const versesInBasket = basketVerses[selectedBasket] || new Set<string>();
+      const isInBasket = versesInBasket.has(verse.verse_key);
+      
+      if (isInBasket) {
+        // Si le verset est déjà dans le panier, le supprimer
+        try {
+          // Trouver l'ID du verset dans la base de données
+          const { data: existingVerse } = await supabase
+            .from('basket_verses')
+            .select('id')
+            .eq('basket_id', selectedBasket)
+            .eq('surah_id', verse.surah_id || 0)
+            .eq('verse_number', verseNumber)
+            .single();
+            
+          if (existingVerse) {
+            // Supprimer le verset
+            const { error } = await supabase
+              .from('basket_verses')
+              .delete()
+              .eq('id', existingVerse.id);
+              
+            if (error) throw error;
+            
+            // Mettre à jour l'état local
+            const newVersesInBasket = new Set(versesInBasket);
+            newVersesInBasket.delete(verse.verse_key);
+            
+            setBasketVerses(prev => ({
+              ...prev,
+              [selectedBasket]: newVersesInBasket
+            }));
+            
+            setMessage({ text: 'Verset retiré du panier', type: 'success' });
+            setTimeout(() => setMessage(null), 3000);
+          }
+        } catch (error) {
+          console.error('Error removing verse from basket:', error);
+          setMessage({ 
+            text: error instanceof Error ? error.message : 'Une erreur est survenue lors de la suppression du verset', 
+            type: 'error' 
+          });
+          setTimeout(() => setMessage(null), 3000);
+        }
+        
         return;
       }
 
@@ -105,7 +215,7 @@ export default function QuranPage() {
         verse_number: verseNumber
       };
 
-      // Ajouter le texte du verset si colonne 'text_arabic' existe
+      // Ajouter le texte du verset si disponible
       if (verse.text_uthmani) {
         basketVerseData.text_arabic = verse.text_uthmani;
       }
@@ -117,7 +227,19 @@ export default function QuranPage() {
         .from('basket_verses')
         .insert([basketVerseData]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erreur lors de l\'ajout du verset:', error);
+        throw error;
+      }
+      
+      // Mettre à jour l'état local
+      const newVersesInBasket = new Set(versesInBasket);
+      newVersesInBasket.add(verse.verse_key);
+      
+      setBasketVerses(prev => ({
+        ...prev,
+        [selectedBasket]: newVersesInBasket
+      }));
 
       setMessage({ text: 'Verset ajouté au panier avec succès', type: 'success' });
       setTimeout(() => setMessage(null), 3000);
@@ -240,17 +362,28 @@ export default function QuranPage() {
               <div className="flex flex-wrap gap-3 mb-4">
                 {userBaskets.length > 0 ? (
                   userBaskets.map((basket) => (
-                    <button
-                      key={basket.id}
-                      onClick={() => setSelectedBasket(basket.id)}
-                      className={`px-4 py-2 rounded-md text-sm ${
-                        selectedBasket === basket.id
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      {basket.name}
-                    </button>
+                    <div key={basket.id} className="flex">
+                      <button
+                        onClick={() => setSelectedBasket(basket.id)}
+                        className={`px-4 py-2 rounded-l-md text-sm ${
+                          selectedBasket === basket.id
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {basket.name}
+                      </button>
+                      <a
+                        href={`/baskets/${basket.id}`}
+                        className="px-2 py-2 rounded-r-md text-sm bg-green-600 text-white hover:bg-green-700 flex items-center justify-center"
+                        title="Voir le contenu du panier"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                        </svg>
+                      </a>
+                    </div>
                   ))
                 ) : (
                   <p className="text-gray-500 dark:text-gray-400">Vous n&apos;avez pas encore créé de panier.</p>
@@ -302,25 +435,38 @@ export default function QuranPage() {
                   {selectedSurah ? (
                     verses.length > 0 ? (
                       <div className="space-y-6">
-                        {verses.map((verse) => (
-                          <div key={verse.id} className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-4 last:border-0">
-                            <div className="flex justify-between items-start mb-2">
-                              <span className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 text-sm px-2 py-1 rounded">
-                                {verse.verse_key}
-                              </span>
-                              <button
-                                onClick={() => handleAddToBasket(verse)}
-                                className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300"
-                                title="Ajouter au panier"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                  <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fillRule="evenodd" clipRule="evenodd" />
-                                </svg>
-                              </button>
+                        {verses.map((verse) => {
+                          // Vérifier si le verset est dans un des paniers, et particulièrement dans le panier sélectionné
+                          const isInSelectedBasket = selectedBasket && 
+                            basketVerses[selectedBasket] && 
+                            basketVerses[selectedBasket].has(verse.verse_key);
+                            
+                          return (
+                            <div 
+                              key={verse.id} 
+                              className={`border-b border-gray-200 dark:border-gray-700 pb-4 mb-4 last:border-0 ${
+                                isInSelectedBasket 
+                                  ? 'bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4'
+                                  : 'hover:bg-gray-50 dark:hover:bg-gray-800/50 p-4 rounded-lg transition-colors'
+                              } cursor-pointer`}
+                              onClick={() => handleAddToBasket(verse)}
+                            >
+                              <div className="flex justify-between items-start mb-2">
+                                <span className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 text-sm px-2 py-1 rounded">
+                                  {verse.verse_key}
+                                </span>
+                                <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300 ${
+                                  isInSelectedBasket 
+                                    ? 'bg-purple-600 text-white transform scale-110'
+                                    : 'bg-purple-100 text-purple-600'
+                                }`}>
+                                  {isInSelectedBasket ? '✓' : '+'}
+                                </div>
+                              </div>
+                              <p className="arabic text-right text-xl leading-loose mb-2">{verse.text_uthmani}</p>
                             </div>
-                            <p className="arabic text-right text-xl leading-loose mb-2">{verse.text_uthmani}</p>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-center py-8 text-gray-500 dark:text-gray-400">

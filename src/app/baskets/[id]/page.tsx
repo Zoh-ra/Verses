@@ -31,8 +31,6 @@ export default function BasketPage() {
   const [basket, setBasket] = useState<Basket | null>(null);
   const [verses, setVerses] = useState<BasketVerse[]>([]);
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
-  const [showSurahName, setShowSurahName] = useState(true);
-  const [surahNames, setSurahNames] = useState<Record<number, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'presentation'>('list');
@@ -80,19 +78,6 @@ export default function BasketPage() {
         
         setVerses(versesData || []);
         
-        // Get all unique surah IDs from verses
-        const surahIds = [...new Set((versesData || []).map(verse => verse.surah_id))];
-        
-        // Fetch surah names for display
-        const surahNamesMap: Record<number, string> = {};
-        
-        for (const surahId of surahIds) {
-          const response = await fetch(`https://api.quran.com/api/v4/chapters/${surahId}?language=fr`);
-          const data = await response.json();
-          surahNamesMap[surahId] = data.chapter.name_simple;
-        }
-        
-        setSurahNames(surahNamesMap);
       } catch (error: any) {
         console.error('Error fetching basket data:', error);
         setMessage({
@@ -225,7 +210,6 @@ export default function BasketPage() {
                   <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
                     <thead className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
                       <tr>
-                        <th className="py-3 px-4 text-left">Sourate</th>
                         <th className="py-3 px-4 text-left">Verset</th>
                         <th className="py-3 px-4 text-left">Texte</th>
                         <th className="py-3 px-4 text-center">Actions</th>
@@ -234,9 +218,6 @@ export default function BasketPage() {
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
                       {verses.map((verse, index) => (
                         <tr key={verse.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="py-3 px-4">
-                            {surahNames[verse.surah_id] || `Sourate ${verse.surah_id}`}
-                          </td>
                           <td className="py-3 px-4">
                             {verse.verse_number}
                           </td>
@@ -271,7 +252,7 @@ export default function BasketPage() {
                 </div>
                 <div className="flex justify-between mt-6">
                   <Link
-                    href="/quran"
+                    href={`/quran?basket=${basketId}`}
                     className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition flex items-center"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -301,16 +282,6 @@ export default function BasketPage() {
                   <X className="h-5 w-5" />
                 </button>
                 
-                {/* Controls for showing/hiding surah name */}
-                <div className="flex justify-center mb-6">
-                  <button
-                    onClick={() => setShowSurahName(!showSurahName)}
-                    className="text-sm text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300"
-                  >
-                    {showSurahName ? 'Masquer le nom de la sourate' : 'Afficher le nom de la sourate'}
-                  </button>
-                </div>
-                
                 {/* Verse counter */}
                 <div className="text-center mb-4 text-sm text-gray-500 dark:text-gray-400">
                   Verset {currentVerseIndex + 1} sur {verses.length}
@@ -320,12 +291,6 @@ export default function BasketPage() {
                 <div className="p-10 bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-800 dark:to-indigo-950 rounded-xl mb-8 shadow-md border border-purple-100 dark:border-purple-900 relative">
                   <div className="absolute top-4 left-4 text-5xl text-purple-200 dark:text-purple-800 opacity-50">&ldquo;</div>
                   <div className="absolute bottom-4 right-4 text-5xl text-purple-200 dark:text-purple-800 opacity-50">&rdquo;</div>
-                  
-                  {showSurahName && verses[currentVerseIndex]?.surah_id && (
-                    <div className="mb-6 text-center font-medium text-purple-600 dark:text-purple-400">
-                      Sourate: {surahNames[verses[currentVerseIndex].surah_id] || `Sourate ${verses[currentVerseIndex].surah_id}`}
-                    </div>
-                  )}
                   
                   <div className="mb-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     Verset {verses[currentVerseIndex]?.verse_number}
@@ -354,14 +319,6 @@ export default function BasketPage() {
                     >
                       <Trash2 className="h-4 w-4 mr-1" />
                       Supprimer
-                    </button>
-                    
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition flex items-center"
-                    >
-                      <List className="h-4 w-4 mr-1" />
-                      Liste
                     </button>
                   </div>
                   
@@ -395,7 +352,7 @@ export default function BasketPage() {
               Ajoutez des versets depuis la page du Coran
             </p>
             <Link
-              href="/quran"
+              href={`/quran?basket=${basketId}`}
               className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition"
             >
               Explorer le Coran
