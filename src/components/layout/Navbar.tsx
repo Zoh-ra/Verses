@@ -38,10 +38,8 @@ export default function Navbar() {
   
   // Définition des liens de navigation
   const navigationLinks = [
-    { name: 'Accueil', href: '/', requireAuth: false },
-    { name: 'Explorer', href: '/explore', requireAuth: false },
+    { name: 'Quran', href: '/quran', requireAuth: false },
     { name: 'Mes Paniers', href: '/baskets', requireAuth: true },
-    { name: 'Créer un Panier', href: '/baskets/create', requireAuth: true },
     { name: 'Profil', href: '/profile', requireAuth: true },
   ];
   
