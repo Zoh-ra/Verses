@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #4A6CF7;
+  --primary-hover: #3557E8;
+  --primary-light: #E8EFFF;
+  --secondary: #131B4D;
+  --accent: #4F46E5;
+  --text-primary: #131B4D;
+  --text-secondary: #6B7280;
+  --background: #FFFFFF;
+  --card-background: #FFFFFF;
+  --border: #E5E7EB;
+  --success: #16A34A;
+  --error: #DC2626;
+  --notification: #4EFD88;
+}
+
+.dark {
+  --primary: #4A6CF7;
+  --primary-hover: #5D7BFC;
+  --primary-light: #1F2A65;
+  --secondary: #FFFFFF;
+  --accent: #6366F1;
+  --text-primary: #F9FAFB;
+  --text-secondary: #9CA3AF;
+  --background: #0F172A;
+  --card-background: #1E293B;
+  --border: #334155;
+  --success: #22C55E;
+  --error: #EF4444;
+  --notification: #4EFD88;
+}
+
+html,
+body {
+  max-width: 100vw;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body {
+  color: var(--text-primary);
+  background: var(--background);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* For Arabic text */
+.arabic {
+  font-family: 'Scheherazade New', 'Traditional Arabic', serif;
+  direction: rtl;
+  line-height: 1.8;
+}
+
+@layer components {
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700;
+  }
+  
+  .btn-primary {
+    @apply bg-primary hover:bg-primary-hover text-white font-medium py-2 px-4 rounded-lg transition-colors;
+  }
+  
+  .btn-secondary {
+    @apply bg-white hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 border border-gray-200 rounded-lg transition-colors;
+  }
+  
+  .input {
+    @apply w-full p-3 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent dark:bg-gray-800 dark:text-white;
+  }
+  
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+}
