@@ -44,6 +44,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-TileColor" content="#781ECF" />
         <meta name="msapplication-tap-highlight" content="no" />
+        <script src="/register-sw.js" defer></script>
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
