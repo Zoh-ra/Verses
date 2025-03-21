@@ -224,21 +224,21 @@ export default function BasketPage() {
                           <td className="py-3 px-4 arabic text-right max-w-[200px] truncate" dir="rtl">
                             {verse.text_arabic}
                           </td>
-                          <td className="py-3 px-4 text-center">
-                            <div className="flex justify-center space-x-2">
+                          <td className="py-3 px-4 text-center md:py-4 md:px-6">
+                            <div className="flex justify-center space-x-2 md:space-x-4">
                               <button
                                 onClick={() => {
                                   setCurrentVerseIndex(index);
                                   setViewMode('presentation');
                                 }}
-                                className="p-1.5 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition"
+                                className="p-1.5 md:p-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition"
                                 title="Afficher"
                               >
                                 <Eye className="h-4 w-4" />
                               </button>
                               <button
                                 onClick={() => handleRemoveVerse(verse.id)}
-                                className="p-1.5 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition"
+                                className="p-1.5 md:p-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition"
                                 title="Supprimer"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -250,10 +250,10 @@ export default function BasketPage() {
                     </tbody>
                   </table>
                 </div>
-                <div className="flex justify-between mt-6">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-6">
                   <Link
                     href={`/quran?basket=${basketId}`}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition flex items-center"
+                    className="w-full sm:w-auto px-3 py-1.5 md:px-4 md:py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition flex items-center justify-center"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Ajouter des versets
@@ -264,7 +264,7 @@ export default function BasketPage() {
                         setCurrentVerseIndex(0);
                         setViewMode('presentation');
                       }}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center"
+                      className="w-full sm:w-auto mt-2 sm:mt-0 px-3 py-1.5 md:px-4 md:py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center justify-center"
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       Afficher tous les versets
@@ -302,20 +302,20 @@ export default function BasketPage() {
                 </div>
                 
                 {/* Navigation buttons */}
-                <div className="flex justify-between items-center mt-8">
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-8">
                   <button
                     onClick={handlePreviousVerse}
                     disabled={currentVerseIndex === 0}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                    className="w-full sm:w-auto px-3 py-1.5 md:px-4 md:py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     <ChevronLeft className="h-4 w-4 mr-1" />
                     Précédent
                   </button>
                   
-                  <div className="flex space-x-2">
+                  <div className="w-full sm:w-auto flex justify-center my-2 sm:my-0">
                     <button
                       onClick={() => handleRemoveVerse(verses[currentVerseIndex].id)}
-                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center"
+                      className="px-3 py-1.5 md:px-4 md:py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center"
                     >
                       <Trash2 className="h-4 w-4 mr-1" />
                       Supprimer
@@ -325,7 +325,7 @@ export default function BasketPage() {
                   {currentVerseIndex < verses.length - 1 ? (
                     <button
                       onClick={handleNextVerse}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition flex items-center"
+                      className="w-full sm:w-auto px-3 py-1.5 md:px-4 md:py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition flex items-center justify-center"
                     >
                       Suivant
                       <ChevronRight className="h-4 w-4 ml-1" />
@@ -333,7 +333,7 @@ export default function BasketPage() {
                   ) : (
                     <Link
                       href="/baskets"
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition"
+                      className="w-full sm:w-auto px-3 py-1.5 md:px-4 md:py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition text-center"
                     >
                       Terminer
                     </Link>

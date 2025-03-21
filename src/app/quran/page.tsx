@@ -162,13 +162,18 @@ export default function QuranPage() {
         // Si le verset est déjà dans le panier, le supprimer
         try {
           // Trouver l'ID du verset dans la base de données
-          const { data: existingVerse } = await supabase
+          const { data: existingVerse, error: findError } = await supabase
             .from('basket_verses')
             .select('id')
             .eq('basket_id', selectedBasket)
-            .eq('surah_id', verse.surah_id || 0)
+            .eq('surah_id', verse.surah_id)
             .eq('verse_number', verseNumber)
             .single();
+            
+          if (findError) {
+            console.error('Erreur lors de la recherche du verset:', findError);
+            throw findError;
+          }
             
           if (existingVerse) {
             // Supprimer le verset
@@ -203,7 +208,28 @@ export default function QuranPage() {
         return;
       }
 
-      // Préparation des données à insérer
+      // Debug: afficher la structure complète du verset pour comprendre les données
+      console.log('Structure complète du verset:', JSON.stringify(verse, null, 2));
+      
+      // Récupérer surah_id soit depuis la propriété, soit depuis verse_key (format: "1:1")
+      let surahId: number;
+      if (typeof verse.surah_id === 'number') {
+        surahId = verse.surah_id;
+      } else {
+        // Extraire le numéro de sourate depuis verse_key (format "1:1")
+        const surahNumberFromKey = parseInt(verse.verse_key.split(':')[0]);
+        if (isNaN(surahNumberFromKey)) {
+          throw new Error('Impossible de déterminer l\'identifiant de sourate');
+        }
+        surahId = surahNumberFromKey;
+      }
+      
+      // S'assurer que l'identifiant de sourate est valide
+      if (isNaN(surahId) || surahId <= 0) {
+        throw new Error('Identifiant de sourate invalide');
+      }
+
+      // Préparation des données à insérer avec typage explicite
       const basketVerseData: {
         basket_id: string;
         surah_id: number;
@@ -211,7 +237,7 @@ export default function QuranPage() {
         text_arabic?: string;
       } = {
         basket_id: selectedBasket,
-        surah_id: verse.surah_id || 0, // Utiliser 0 comme valeur par défaut si undefined
+        surah_id: surahId,
         verse_number: verseNumber
       };
 
@@ -245,7 +271,10 @@ export default function QuranPage() {
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
       console.error('Error adding verse to basket:', error);
-      setMessage({ text: error instanceof Error ? error.message : 'Une erreur est survenue', type: 'error' });
+      setMessage({ 
+        text: error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'ajout du verset', 
+        type: 'error' 
+      });
       setTimeout(() => setMessage(null), 3000);
     }
   };
@@ -303,7 +332,7 @@ export default function QuranPage() {
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold mb-8 text-center">Le Saint Coran</h1>
+        <h1 className="text-3xl font-bold mb-8 text-center">Quran</h1>
         
         {/* Messages */}
         {message && (
@@ -363,25 +392,20 @@ export default function QuranPage() {
                 {userBaskets.length > 0 ? (
                   userBaskets.map((basket) => (
                     <div key={basket.id} className="flex">
-                      <button
-                        onClick={() => setSelectedBasket(basket.id)}
-                        className={`px-4 py-2 rounded-l-md text-sm ${
+                      <a
+                        href={`/baskets/${basket.id}`}
+                        onClick={(e) => {
+                          e.preventDefault(); // Empêcher la navigation immédiate
+                          setSelectedBasket(basket.id); // Sélectionner d'abord le panier
+                          window.location.href = `/baskets/${basket.id}`; // Puis rediriger
+                        }}
+                        className={`px-4 py-2 rounded-md text-sm ${
                           selectedBasket === basket.id
                             ? 'bg-purple-600 text-white'
                             : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }`}
                       >
                         {basket.name}
-                      </button>
-                      <a
-                        href={`/baskets/${basket.id}`}
-                        className="px-2 py-2 rounded-r-md text-sm bg-green-600 text-white hover:bg-green-700 flex items-center justify-center"
-                        title="Voir le contenu du panier"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                        </svg>
                       </a>
                     </div>
                   ))

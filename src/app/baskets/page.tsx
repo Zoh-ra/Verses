@@ -29,8 +29,13 @@ export default function BasketsPage() {
       
       // S'assurer que l'utilisateur est connecté
       if (!user) {
+        // Attendre explicitement le rafraîchissement de la session
         await refreshSession();
-        if (!user) {
+        
+        // Obtenir directement l'utilisateur de Supabase
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        
+        if (!currentUser) {
           console.error('Aucun utilisateur connecté');
           setMessage({
             text: 'Veuillez vous connecter pour voir vos paniers',
@@ -39,42 +44,80 @@ export default function BasketsPage() {
           setIsLoading(false);
           return;
         }
+        
+        // Utiliser l'utilisateur récupéré directement de Supabase
+        console.log("Récupération des paniers pour l'utilisateur:", currentUser.id);
+
+        // Get all baskets for the user
+        const { data: basketsData, error: basketsError } = await supabase
+          .from('baskets')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .order('created_at', { ascending: false });
+
+        if (basketsError) {
+          console.error('Erreur lors de la récupération des paniers:', basketsError);
+          throw basketsError;
+        }
+
+        console.log("Paniers récupérés:", basketsData?.length || 0);
+
+        // For each basket, get the count of verses
+        const basketsWithCount = await Promise.all(
+          (basketsData || []).map(async (basket: Basket) => {
+            const { count, error: countError } = await supabase
+              .from('basket_verses')
+              .select('*', { count: 'exact', head: true })
+              .eq('basket_id', basket.id);
+            
+            if (countError) {
+              console.error('Erreur lors du comptage des versets:', countError);
+              return { ...basket, verse_count: null };
+            }
+            
+            return { ...basket, verse_count: count };
+          })
+        );
+        
+        setBaskets(basketsWithCount);
+        
+      } else {
+        // L'utilisateur est déjà connecté, continuer normalement
+        console.log("Récupération des paniers pour l'utilisateur:", user.id);
+
+        // Get all baskets for the user
+        const { data: basketsData, error: basketsError } = await supabase
+          .from('baskets')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (basketsError) {
+          console.error('Erreur lors de la récupération des paniers:', basketsError);
+          throw basketsError;
+        }
+
+        console.log("Paniers récupérés:", basketsData?.length || 0);
+
+        // For each basket, get the count of verses
+        const basketsWithCount = await Promise.all(
+          (basketsData || []).map(async (basket: Basket) => {
+            const { count, error: countError } = await supabase
+              .from('basket_verses')
+              .select('*', { count: 'exact', head: true })
+              .eq('basket_id', basket.id);
+            
+            if (countError) {
+              console.error('Erreur lors du comptage des versets:', countError);
+              return { ...basket, verse_count: null };
+            }
+            
+            return { ...basket, verse_count: count };
+          })
+        );
+        
+        setBaskets(basketsWithCount);
       }
-
-      console.log("Récupération des paniers pour l'utilisateur:", user.id);
-
-      // Get all baskets for the user
-      const { data: basketsData, error: basketsError } = await supabase
-        .from('baskets')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (basketsError) {
-        console.error('Erreur lors de la récupération des paniers:', basketsError);
-        throw basketsError;
-      }
-
-      console.log("Paniers récupérés:", basketsData?.length || 0);
-
-      // For each basket, get the count of verses
-      const basketsWithCount = await Promise.all(
-        (basketsData || []).map(async (basket: Basket) => {
-          const { count, error: countError } = await supabase
-            .from('basket_verses')
-            .select('*', { count: 'exact', head: true })
-            .eq('basket_id', basket.id);
-          
-          if (countError) {
-            console.error('Erreur lors du comptage des versets:', countError);
-            return { ...basket, verse_count: null };
-          }
-          
-          return { ...basket, verse_count: count };
-        })
-      );
-      
-      setBaskets(basketsWithCount);
     } catch (error) {
       console.error('Erreur lors de la récupération des paniers:', error);
       setMessage({

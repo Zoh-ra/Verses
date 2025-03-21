@@ -3,21 +3,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase';
 import { useRouter } from 'next/navigation';
+import AppLayout from '@/components/layout/AppLayout';
 
 type ProfileData = {
   id: string;
   username: string;
   full_name: string | null;
-  avatar_url: string | null;
   email: string | null;
-};
-
-type PreferencesData = {
-  id: string;
-  user_id: string;
-  theme: string;
-  translation_preference: string;
-  display_mode: string;
 };
 
 export default function ProfilePage() {
@@ -25,6 +17,9 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState('');
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -80,55 +75,92 @@ export default function ProfilePage() {
     }
   };
 
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!feedback.trim()) return;
+
+    setFeedbackLoading(true);
+    try {
+      // Vérifier si l'utilisateur est connecté
+      if (!user) {
+        throw new Error("Vous devez être connecté pour soumettre un avis");
+      }
+
+      // Enregistrer le feedback dans la base de données
+      const { error } = await supabase.from('user_feedback').insert([
+        { 
+          user_id: user.id, 
+          content: feedback,
+          created_at: new Date().toISOString() 
+        }
+      ]);
+
+      if (error) {
+        throw error;
+      }
+
+      setFeedbackSubmitted(true);
+      setFeedback('');
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi du feedback:', error);
+      setError(error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'envoi de votre avis');
+    } finally {
+      setFeedbackLoading(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="loader"></div>
-        <p className="ml-2">Chargement...</p>
-      </div>
+      <AppLayout>
+        <div className="flex justify-center items-center h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-700"></div>
+        </div>
+      </AppLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6 max-w-lg w-full" role="alert">
-          <p className="font-bold">Erreur</p>
-          <p>{error}</p>
+      <AppLayout>
+        <div className="min-h-screen flex flex-col items-center justify-center p-4">
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6 max-w-lg w-full" role="alert">
+            <p className="font-bold">Erreur</p>
+            <p>{error}</p>
+          </div>
+          <button 
+            onClick={() => router.push('/auth/signin')}
+            className="bg-primary hover:bg-primary-hover text-white font-medium py-2 px-4 rounded-lg"
+          >
+            Retour à la connexion
+          </button>
         </div>
-        <button 
-          onClick={() => router.push('/auth/signin')}
-          className="bg-primary hover:bg-primary-hover text-white font-medium py-2 px-4 rounded-lg"
-        >
-          Retour à la connexion
-        </button>
-      </div>
+      </AppLayout>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <h2 className="text-2xl font-bold mb-4">Vous n'êtes pas connecté</h2>
-        <button 
-          onClick={() => router.push('/auth/signin')}
-          className="bg-primary hover:bg-primary-hover text-white font-medium py-2 px-4 rounded-lg"
-        >
-          Se connecter
-        </button>
-      </div>
+      <AppLayout>
+        <div className="min-h-screen flex flex-col items-center justify-center p-4">
+          <h2 className="text-2xl font-bold mb-4">Vous n'êtes pas connecté</h2>
+          <button 
+            onClick={() => router.push('/auth/signin')}
+            className="bg-primary hover:bg-primary-hover text-white font-medium py-2 px-4 rounded-lg"
+          >
+            Se connecter
+          </button>
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden rounded-lg">
-          <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Profil Utilisateur</h2>
-              <p className="mt-1 max-w-2xl text-sm text-gray-500 dark:text-gray-400">Informations personnelles</p>
-            </div>
+    <AppLayout>
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden rounded-lg mb-8">
+          {/* Header avec titre et bouton de déconnexion */}
+          <div className="px-6 py-5 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Mon Profil</h2>
             <button
               onClick={handleSignOut}
               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm"
@@ -137,61 +169,81 @@ export default function ProfilePage() {
             </button>
           </div>
           
-          <div className="border-t border-gray-200 dark:border-gray-700">
-            <dl>
-              <div className="bg-gray-50 dark:bg-gray-900 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-white sm:col-span-2 sm:mt-0">{user.email}</dd>
-              </div>
-              
-              <div className="bg-white dark:bg-gray-800 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">ID Utilisateur</dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-white sm:col-span-2 sm:mt-0">{user.id}</dd>
-              </div>
-              
-              {profile && (
-                <>
-                  <div className="bg-gray-50 dark:bg-gray-900 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Nom d'utilisateur</dt>
-                    <dd className="mt-1 text-sm text-gray-900 dark:text-white sm:col-span-2 sm:mt-0">{profile.username || 'Non défini'}</dd>
+          {/* Infos utilisateur */}
+          <div className="px-6 py-5">
+            <div className="mb-6">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">Informations Personnelles</h3>
+              <div className="grid grid-cols-1 gap-4">
+                {/* Pseudo */}
+                <div className="flex flex-col sm:flex-row sm:items-center">
+                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400 w-32">Pseudo</div>
+                  <div className="mt-1 sm:mt-0 text-base text-gray-900 dark:text-white">
+                    {profile?.full_name || (user?.email ? user.email.split('@')[0] : '') || 'Non défini'}
                   </div>
-                  
-                  <div className="bg-white dark:bg-gray-800 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                    <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Nom complet</dt>
-                    <dd className="mt-1 text-sm text-gray-900 dark:text-white sm:col-span-2 sm:mt-0">{profile.full_name || 'Non défini'}</dd>
-                  </div>
-                </>
-              )}
-              
-              <div className="bg-gray-50 dark:bg-gray-900 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Statut de l'email</dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-white sm:col-span-2 sm:mt-0">
-                  {user.email_confirmed_at ? (
-                    <span className="text-green-600 dark:text-green-400">Confirmé ({new Date(user.email_confirmed_at).toLocaleString()})</span>
-                  ) : (
-                    <span className="text-yellow-600 dark:text-yellow-400">Non confirmé</span>
-                  )}
-                </dd>
+                </div>
+                
+                {/* Email */}
+                <div className="flex flex-col sm:flex-row sm:items-center">
+                  <div className="text-sm font-medium text-gray-500 dark:text-gray-400 w-32">Email</div>
+                  <div className="mt-1 sm:mt-0 text-base text-gray-900 dark:text-white">{user.email}</div>
+                </div>
               </div>
-              
-              <div className="bg-white dark:bg-gray-800 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Dernière connexion</dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-white sm:col-span-2 sm:mt-0">
-                  {user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString() : 'Jamais'}
-                </dd>
-              </div>
-            </dl>
-          </div>
-          
-          <div className="px-4 py-5 sm:px-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Données brutes</h3>
-            <div className="mt-2 rounded-md bg-gray-100 dark:bg-gray-700 p-4 overflow-auto max-h-96">
-              <pre className="text-xs text-gray-800 dark:text-gray-200">User: {JSON.stringify(user, null, 2)}</pre>
-              {profile && <pre className="text-xs text-gray-800 dark:text-gray-200 mt-4">Profile: {JSON.stringify(profile, null, 2)}</pre>}
             </div>
           </div>
         </div>
+        
+        {/* Section de feedback */}
+        <div className="bg-white dark:bg-gray-800 shadow rounded-lg">
+          <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">Partagez votre avis</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Nous apprécions vos commentaires pour améliorer votre expérience. N'hésitez pas à partager vos suggestions, signaler des bugs ou demander de nouvelles fonctionnalités.
+            </p>
+          </div>
+          
+          <div className="px-6 py-5">
+            {feedbackSubmitted ? (
+              <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg">
+                <p className="font-bold">Merci pour votre avis !</p>
+                <p>Nous avons bien reçu vos commentaires et allons les prendre en compte.</p>
+                <button 
+                  onClick={() => setFeedbackSubmitted(false)} 
+                  className="mt-3 text-sm font-medium text-green-700 hover:text-green-900"
+                >
+                  Envoyer un autre avis
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleFeedbackSubmit}>
+                <textarea
+                  rows={5}
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="Partagez vos idées, commentaires ou signalements de bugs..."
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  required
+                />
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={feedbackLoading}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg text-sm flex items-center"
+                  >
+                    {feedbackLoading ? (
+                      <>
+                        <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
+                        Envoi en cours...
+                      </>
+                    ) : (
+                      'Envoyer mon avis'
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }
