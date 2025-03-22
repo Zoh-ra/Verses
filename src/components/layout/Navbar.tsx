@@ -48,6 +48,8 @@ export default function Navbar() {
   
   // Vérifier si un lien est actif
   const isActive = (href: string) => {
+    if (!pathname) return false;
+    
     if (href === '/') {
       return pathname === '/';
     }
