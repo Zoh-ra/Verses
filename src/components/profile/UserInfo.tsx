@@ -15,7 +15,7 @@ type ProfileData = {
 type UserInfoProps = {
   user: User;
   profile: ProfileData;
-  error: any;
+  error: string | null;
 };
 
 export function UserInfo({ user, profile, error }: UserInfoProps) {
@@ -54,7 +54,7 @@ export function UserInfo({ user, profile, error }: UserInfoProps) {
       
       {error && (
         <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-md text-sm">
-          {error.message || "Une erreur s'est produite lors du chargement des informations utilisateur."}
+          {error || "Une erreur s'est produite lors du chargement des informations utilisateur."}
         </div>
       )}
       

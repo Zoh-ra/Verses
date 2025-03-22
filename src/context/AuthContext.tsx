@@ -31,6 +31,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (error) {
           console.error('Erreur lors de la récupération de la session:', error);
+          
+          // Si l'erreur est liée à un token de rafraîchissement invalide
+          if (error.message.includes('Invalid Refresh Token') || 
+              error.message.includes('Refresh Token Not Found')) {
+            
+            console.log('Token de rafraîchissement invalide lors de l\'initialisation, nettoyage de session');
+            // Nettoyer complètement les données de session locales
+            localStorage.removeItem('supabase.auth.token');
+            setSession(null);
+            setUser(null);
+          }
+          
           return;
         }
 
@@ -94,6 +106,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSession(newSession);
           setUser(newSession?.user || null);
         }
+        else if (event === 'USER_UPDATED') {
+          console.log('Utilisateur mis à jour');
+          setSession(newSession);
+          setUser(newSession?.user || null);
+        }
         
         setIsLoading(false);
       }
@@ -154,17 +171,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       // Essayer de rafraîchir le token si une session existe
-      const { data: { session: refreshedSession }, error: refreshError } = 
-        await supabase.auth.refreshSession(currentSession);
-      
-      if (refreshError) {
-        console.error('Erreur lors du rafraîchissement du token:', refreshError);
-        return;
+      try {
+        const { data: { session: refreshedSession }, error: refreshError } = 
+          await supabase.auth.refreshSession(currentSession);
+        
+        if (refreshError) {
+          console.error('Erreur lors du rafraîchissement du token:', refreshError);
+          
+          // Si l'erreur est liée à un token invalide ou manquant, on nettoie la session
+          if (refreshError.message.includes('Invalid Refresh Token') || 
+              refreshError.message.includes('Refresh Token Not Found')) {
+            console.log('Token de rafraîchissement invalide ou manquant, nettoyage de session');
+            setSession(null);
+            setUser(null);
+            
+            // Redirection uniquement si on est sur une page protégée
+            if (pathname?.includes('/baskets') || pathname === '/profile') {
+              router.push('/auth/signin');
+            }
+          }
+          return;
+        }
+        
+        console.log('Session rafraîchie avec succès');
+        setSession(refreshedSession);
+        setUser(refreshedSession?.user || null);
+      } catch (error) {
+        console.error('Exception lors du rafraîchissement du token:', error);
+        setSession(null);
+        setUser(null);
       }
-      
-      console.log('Session rafraîchie avec succès');
-      setSession(refreshedSession);
-      setUser(refreshedSession?.user || null);
     } catch (error) {
       console.error('Exception lors du rafraîchissement de la session:', error);
     } finally {

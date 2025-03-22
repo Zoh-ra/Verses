@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase';
 import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
+import { User } from '@/types/user';
 
 type ProfileData = {
   id: string;
@@ -13,7 +14,7 @@ type ProfileData = {
 };
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,7 +143,7 @@ export default function ProfilePage() {
     return (
       <AppLayout>
         <div className="min-h-screen flex flex-col items-center justify-center p-4">
-          <h2 className="text-2xl font-bold mb-4">Vous n'êtes pas connecté</h2>
+          <h2 className="text-2xl font-bold mb-4">Vous n&apos;êtes pas connecté</h2>
           <button 
             onClick={() => router.push('/auth/signin')}
             className="bg-primary hover:bg-primary-hover text-white font-medium py-2 px-4 rounded-lg"
@@ -197,21 +198,14 @@ export default function ProfilePage() {
           <div className="px-6 py-5 border-b border-gray-200 dark:border-gray-700">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white">Partagez votre avis</h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Nous apprécions vos commentaires pour améliorer votre expérience. N'hésitez pas à partager vos suggestions, signaler des bugs ou demander de nouvelles fonctionnalités.
+              Nous apprécions vos commentaires pour améliorer votre expérience. N&apos;hésitez pas à partager vos suggestions, signaler des bugs ou demander de nouvelles fonctionnalités.
             </p>
           </div>
           
           <div className="px-6 py-5">
             {feedbackSubmitted ? (
               <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-lg">
-                <p className="font-bold">Merci pour votre avis !</p>
-                <p>Nous avons bien reçu vos commentaires et allons les prendre en compte.</p>
-                <button 
-                  onClick={() => setFeedbackSubmitted(false)} 
-                  className="mt-3 text-sm font-medium text-green-700 hover:text-green-900"
-                >
-                  Envoyer un autre avis
-                </button>
+                Merci pour votre retour ! Nous l&apos;avons bien reçu et nous l&apos;analyserons prochainement.
               </div>
             ) : (
               <form onSubmit={handleFeedbackSubmit}>

@@ -15,7 +15,7 @@ type PreferencesData = {
 type SettingsSectionProps = {
   preferences: PreferencesData;
   userId: string;
-  error: any;
+  error: string | null;
 };
 
 export function SettingsSection({ preferences, userId, error }: SettingsSectionProps) {
@@ -72,10 +72,10 @@ export function SettingsSection({ preferences, userId, error }: SettingsSectionP
       }
       
       setTimeout(() => setMessage(null), 3000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating preferences:', error);
       setMessage({
-        text: error.message || 'Une erreur est survenue lors de la mise à jour des préférences',
+        text: error instanceof Error ? error.message : 'Une erreur est survenue lors de la mise à jour des préférences',
         type: 'error'
       });
     } finally {

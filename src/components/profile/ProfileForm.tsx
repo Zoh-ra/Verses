@@ -55,10 +55,10 @@ export function ProfileForm({ profile, userId }: ProfileFormProps) {
       });
       
       setTimeout(() => setMessage(null), 3000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating profile:', error);
       setMessage({
-        text: error.message || 'Une erreur est survenue lors de la mise à jour du profil',
+        text: error instanceof Error ? error.message : 'Une erreur est survenue lors de la mise à jour du profil',
         type: 'error'
       });
     } finally {

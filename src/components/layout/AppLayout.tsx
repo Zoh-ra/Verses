@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/utils/supabase';
+import { User } from '@/types/user';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -12,7 +13,7 @@ interface AppLayoutProps {
 export default function AppLayout({ children, requireAuth = true }: AppLayoutProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const checkUser = async () => {

@@ -78,10 +78,10 @@ export default function BasketPage() {
         
         setVerses(versesData || []);
         
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Error fetching basket data:', error);
         setMessage({
-          text: error.message || 'Une erreur est survenue lors de la récupération des données',
+          text: error instanceof Error ? error.message : 'Une erreur est survenue lors de la récupération des données',
           type: 'error'
         });
         setTimeout(() => setMessage(null), 3000);
@@ -129,10 +129,10 @@ export default function BasketPage() {
       
       setMessage({ text: 'Verset supprimé avec succès', type: 'success' });
       setTimeout(() => setMessage(null), 3000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error removing verse:', error);
       setMessage({
-        text: error.message || 'Une erreur est survenue lors de la suppression du verset',
+        text: error instanceof Error ? error.message : 'Une erreur est survenue lors de la suppression du verset',
         type: 'error'
       });
       setTimeout(() => setMessage(null), 3000);
