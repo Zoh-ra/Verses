@@ -33,13 +33,15 @@ function QuranContent() {
 
   // Récupérer l'ID du panier à partir des paramètres d'URL
   useEffect(() => {
-    const basketId = searchParams.get('basket');
-    if (basketId) {
-      setSelectedBasket(basketId);
+    if (searchParams) {
+      const basketId = searchParams.get('basket');
+      if (basketId) {
+        setSelectedBasket(basketId);
+      }
     }
   }, [searchParams]);
 
-  // Mettre en place une vérification pour stocker le panier sélectionné dans localStorage
+  // Enregistrer le panier sélectionné dans le localStorage
   useEffect(() => {
     if (selectedBasket) {
       localStorage.setItem('verses_selected_basket', selectedBasket);
@@ -48,7 +50,7 @@ function QuranContent() {
 
   // Récupérer le panier précédemment sélectionné lors du chargement initial si aucun panier n'est spécifié dans l'URL
   useEffect(() => {
-    if (!searchParams.get('basket')) {
+    if (!searchParams || !searchParams.get('basket')) {
       const savedBasket = localStorage.getItem('verses_selected_basket');
       if (savedBasket) {
         setSelectedBasket(savedBasket);
@@ -306,26 +308,30 @@ function QuranContent() {
         return;
       }
 
-      // Create a new basket
-      const { data: basket, error } = await supabase
+      const { data, error } = await supabase
         .from('baskets')
-        .insert([{ name: newBasketName, user_id: user.id }])
+        .insert([
+          { name: newBasketName.trim(), user_id: user.id.toString() },
+        ])
         .select()
         .single();
 
       if (error) throw error;
 
-      // Update state
-      setUserBaskets([...userBaskets, basket]);
-      setSelectedBasket(basket.id);
-      setNewBasketName('');
-      setShowCreateBasket(false);
-      
-      setMessage({ text: 'Panier créé avec succès', type: 'success' });
-      setTimeout(() => setMessage(null), 3000);
+      if (data) {
+        setUserBaskets([...userBaskets, data]);
+        setSelectedBasket(data.id);
+        setNewBasketName('');
+        setShowCreateBasket(false);
+        setMessage({ text: 'Panier créé avec succès!', type: 'success' });
+        setTimeout(() => setMessage(null), 3000);
+      }
     } catch (error) {
-      console.error('Error creating basket:', error);
-      setMessage({ text: error instanceof Error ? error.message : 'Une erreur est survenue', type: 'error' });
+      console.error('Erreur lors de la création du panier:', error);
+      setMessage({ 
+        text: 'Une erreur est survenue lors de la création du panier.', 
+        type: 'error' 
+      });
       setTimeout(() => setMessage(null), 3000);
     }
   };
