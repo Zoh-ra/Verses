@@ -47,6 +47,12 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-TileColor" content="#781ECF" />
         <meta name="msapplication-tap-highlight" content="no" />
+        
+        {/* Balises PWA spécifiques supplémentaires */}
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <meta name="theme-color" content="#781ECF" />
+        
         <script src="/register-sw.js" defer></script>
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
