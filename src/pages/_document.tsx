@@ -8,6 +8,7 @@ class MyDocument extends Document {
           {/* Balises PWA essentielles */}
           <link rel="manifest" href="/manifest.json" />
           <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+          <link rel="shortcut-icon" href="/src/app/favicon.ico" />
           <meta name="theme-color" content="#781ECF" />
           
           {/* Autres méta-balises PWA */}
