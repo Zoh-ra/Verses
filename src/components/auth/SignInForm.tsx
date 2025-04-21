@@ -29,7 +29,6 @@ export default function SignInForm() {
         throw error;
       }
       
-      // Rediriger manuellement vers la page des paniers après connexion réussie
       if (data.session) {
         router.push('/baskets');
       }
