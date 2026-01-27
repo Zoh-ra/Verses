@@ -9,7 +9,7 @@ interface CookieOptions {
   secure?: boolean;
   httpOnly?: boolean;
   sameSite?: 'lax' | 'strict' | 'none';
-  expires?: Date;
+  expires?: Date | number;
 }
 
 export async function GET(request: NextRequest) {
@@ -21,12 +21,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const cookieOptions: CookieOptions = {
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-    };
-
+    const cookieStore = cookies();
+    
     // Créer le client Supabase avec la gestion des cookies
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,27 +30,19 @@ export async function GET(request: NextRequest) {
       {
         cookies: {
           get(name: string) {
-            return cookies().get(name)?.value;
+            const cookie = cookieStore.get(name);
+            return cookie?.value;
           },
           set(name: string, value: string, options: CookieOptions) {
             try {
-              cookies().set({
-                name,
-                value,
-                ...options,
-              });
+              cookieStore.set(name, value, options);
             } catch (error) {
               console.error('Error setting cookie:', error);
             }
           },
-          remove(name: string) {
+          remove(name: string, options: Omit<CookieOptions, 'maxAge' | 'expires'>) {
             try {
-              cookies().set({
-                name,
-                value: '',
-                ...cookieOptions,
-                maxAge: 0,
-              });
+              cookieStore.set(name, '', { ...options, maxAge: 0 });
             } catch (error) {
               console.error('Error removing cookie:', error);
             }
