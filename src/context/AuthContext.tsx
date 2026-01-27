@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initSession();
 
     // Abonnement aux changements d'authentification
-    const { data: authListener } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         console.log('Événement d\'authentification:', event, 'Session:', newSession?.user?.email);
         
@@ -86,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           // Rediriger vers /baskets après la connexion
           router.push('/baskets');
+          router.refresh(); // Rafraîchir pour mettre à jour les données côté serveur
         } 
         else if (event === 'SIGNED_OUT') {
           console.log('Déconnexion détectée');
@@ -118,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Nettoyage
     return () => {
-      authListener.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, [pathname, router]);
 
@@ -127,6 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('Tentative de déconnexion...');
       setIsLoading(true);
+      
+      // Déconnexion côté serveur
       const { error } = await supabase.auth.signOut();
       
       if (error) {
@@ -138,12 +141,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       setUser(null);
       
+      // Nettoyer le stockage local
+      localStorage.removeItem('verses_auth_token');
+      
       console.log('Déconnexion réussie, redirection...');
       
-      // Forcer un rechargement complet de la page pour réinitialiser tout l'état
-      window.location.href = '/';
+      // Rafraîchir la page actuelle ou rediriger vers la page d'accueil
+      if (pathname === '/' || pathname === '/auth/signin' || pathname === '/auth/signup') {
+        window.location.reload();
+      } else {
+        window.location.href = '/';
+      }
     } catch (error) {
       console.error('Exception lors de la déconnexion:', error);
+      // En cas d'erreur, on force quand même la déconnexion côté client
+      setSession(null);
+      setUser(null);
+      localStorage.removeItem('verses_auth_token');
+      window.location.href = '/';
     } finally {
       setIsLoading(false);
     }
@@ -160,6 +175,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (sessionError) {
         console.error('Erreur lors de la récupération de la session:', sessionError);
+        
+        // Si l'erreur est liée à un token invalide, on nettoie la session
+        if (sessionError.message.includes('Invalid Refresh Token') || 
+            sessionError.message.includes('Refresh Token Not Found')) {
+          console.log('Token de rafraîchissement invalide, nettoyage de la session');
+          setSession(null);
+          setUser(null);
+          localStorage.removeItem('verses_auth_token');
+        }
+        
         return;
       }
       
@@ -173,7 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Essayer de rafraîchir le token si une session existe
       try {
         const { data: { session: refreshedSession }, error: refreshError } = 
-          await supabase.auth.refreshSession(currentSession);
+          await supabase.auth.refreshSession();
         
         if (refreshError) {
           console.error('Erreur lors du rafraîchissement du token:', refreshError);
@@ -184,8 +209,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.log('Token de rafraîchissement invalide ou manquant, nettoyage de session');
             setSession(null);
             setUser(null);
+            localStorage.removeItem('verses_auth_token');
             
-            // Redirection uniquement si on est sur une page protégée
+            // Redirection vers la page de connexion
             if (pathname?.includes('/baskets') || pathname === '/profile') {
               router.push('/auth/signin');
             }
@@ -193,9 +219,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         
-        console.log('Session rafraîchie avec succès');
-        setSession(refreshedSession);
-        setUser(refreshedSession?.user || null);
+        if (refreshedSession) {
+          console.log('Session rafraîchie avec succès');
+          setSession(refreshedSession);
+          setUser(refreshedSession.user);
+        } else {
+          console.log('Aucune session retournée après rafraîchissement');
+          setSession(null);
+          setUser(null);
+          localStorage.removeItem('verses_auth_token');
+        }
       } catch (error) {
         console.error('Exception lors du rafraîchissement du token:', error);
         setSession(null);

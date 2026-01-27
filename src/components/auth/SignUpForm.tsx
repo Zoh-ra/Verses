@@ -21,13 +21,27 @@ export default function SignUpForm() {
     setMessage(null);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      // Vérifier si l'email est déjà utilisé
+      const { data: existingUsers } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', email)
+        .single();
+
+      if (existingUsers) {
+        throw new Error('Cet email est déjà utilisé par un autre compte');
+      }
+
+      // Créer l'utilisateur
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: fullName,
+            email_redirect_to: `${window.location.origin}/auth/callback`
           },
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         },
       });
 
@@ -35,12 +49,30 @@ export default function SignUpForm() {
         throw error;
       }
 
-      setMessage('Inscription réussie ! Vérifiez votre email pour confirmer votre compte.');
+      // Si l'utilisateur est créé avec succès mais nécessite une confirmation par email
+      if (data?.user && !data.session) {
+        setMessage('Un email de confirmation a été envoyé à ' + email + '. Veuillez vérifier votre boîte de réception.');
+        // Réinitialiser le formulaire
+        setEmail('');
+        setPassword('');
+        setFullName('');
+      } else if (data?.session) {
+        // Si la session est créée directement (peu probable en mode confirmation par email)
+        setMessage('Inscription réussie ! Redirection en cours...');
+        window.location.href = '/baskets';
+      }
     } catch (error) {
       let errorMessage = 'Une erreur est survenue lors de l\'inscription';
       
       if (error instanceof AuthError) {
-        errorMessage = error.message;
+        // Gestion spécifique des erreurs d'authentification
+        if (error.message.includes('already registered')) {
+          errorMessage = 'Cet email est déjà utilisé par un autre compte';
+        } else if (error.message.includes('password')) {
+          errorMessage = 'Le mot de passe doit contenir au moins 6 caractères';
+        } else {
+          errorMessage = error.message;
+        }
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
