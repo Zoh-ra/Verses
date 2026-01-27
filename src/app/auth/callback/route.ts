@@ -1,5 +1,4 @@
 import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 interface CookieOptions {
@@ -9,50 +8,40 @@ interface CookieOptions {
   secure?: boolean;
   httpOnly?: boolean;
   sameSite?: 'lax' | 'strict' | 'none';
-  expires?: Date | number;
+  expires?: Date;
 }
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
-
+  const redirectTo = requestUrl.searchParams.get('redirect_to') || '/';
+  
   if (!code) {
-    return NextResponse.redirect(`${requestUrl.origin}/auth/signin?error=no_code`);
+    return NextResponse.redirect(
+      new URL('/auth/signin?error=no_code', requestUrl.origin)
+    );
   }
 
   try {
-    const cookieStore = cookies();
+    // Créer une réponse de redirection
+    const targetUrl = new URL(redirectTo, requestUrl.origin);
+    const response = NextResponse.redirect(targetUrl);
     
     // Créer le client Supabase avec la gestion des cookies
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
-        cookies: {
-          get(name: string) {
-            const cookie = cookieStore.get(name);
-            return cookie?.value;
-          },
-          set(name: string, value: string, options: CookieOptions) {
-            try {
-              cookieStore.set(name, value, options);
-            } catch (error) {
-              console.error('Error setting cookie:', error);
-            }
-          },
-          remove(name: string, options: Omit<CookieOptions, 'maxAge' | 'expires'>) {
-            try {
-              cookieStore.set(name, '', { ...options, maxAge: 0 });
-            } catch (error) {
-              console.error('Error removing cookie:', error);
-            }
-          },
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true,
         },
       }
     );
     
     // Échanger le code contre une session
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
     
     if (error) {
       console.error('Error exchanging code for session:', error);
@@ -61,11 +50,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('Session exchange successful for user:', data.user?.email);
+    console.log('Session exchange successful');
     
     // Redirection après connexion réussie
-    const redirectUrl = requestUrl.searchParams.get('redirect_to') || '/';
-    return NextResponse.redirect(new URL(redirectUrl, requestUrl.origin));
+    return response;
     
   } catch (error) {
     console.error('Unexpected error in auth callback:', error);
