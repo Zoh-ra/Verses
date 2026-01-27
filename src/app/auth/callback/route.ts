@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
-type CookieOptions = {
+interface CookieOptions {
   path?: string;
   maxAge?: number;
   domain?: string;
@@ -10,7 +10,7 @@ type CookieOptions = {
   httpOnly?: boolean;
   sameSite?: 'lax' | 'strict' | 'none';
   expires?: Date;
-};
+}
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -21,37 +21,40 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const cookieStore = cookies();
-    
+    const cookieOptions: CookieOptions = {
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    };
+
     // Créer le client Supabase avec la gestion des cookies
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get: (name: string) => {
-            const cookie = cookieStore.get(name);
-            return cookie?.value;
+          get(name: string) {
+            return cookies().get(name)?.value;
           },
-          set: (name: string, value: string, options: CookieOptions) => {
+          set(name: string, value: string, options: CookieOptions) {
             try {
-              cookieStore.set({
+              cookies().set({
                 name,
                 value,
                 ...options,
-              } as any);
+              });
             } catch (error) {
               console.error('Error setting cookie:', error);
             }
           },
-          remove: (name: string, options: Omit<CookieOptions, 'maxAge' | 'expires'>) => {
+          remove(name: string) {
             try {
-              cookieStore.set({
+              cookies().set({
                 name,
                 value: '',
-                ...options,
-                maxAge: 0
-              } as any);
+                ...cookieOptions,
+                maxAge: 0,
+              });
             } catch (error) {
               console.error('Error removing cookie:', error);
             }
