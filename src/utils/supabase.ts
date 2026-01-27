@@ -14,9 +14,28 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    storageKey: 'verses_auth_token',
+    storage: {
+      getItem: (key) => {
+        if (typeof window === 'undefined') {
+          return null;
+        }
+        return localStorage.getItem(key);
+      },
+      setItem: (key, value) => {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(key, value);
+        }
+      },
+      removeItem: (key) => {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(key);
+        }
+      },
+    },
+    flowType: 'implicit',
   },
-  // Augmenter les temps d'attente pour les requêtes
   global: {
     fetch: (...args) => {
       return fetch(...args).catch(error => {

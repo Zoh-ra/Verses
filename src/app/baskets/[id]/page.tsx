@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AppLayout from '@/components/layout/AppLayout';
 import { supabase } from '@/utils/supabase';
+import { getSurahName } from '@/utils/surahs';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Trash2, Eye, List, X, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Trash2, Eye, List, X, Plus, Shuffle } from 'lucide-react';
 
 interface BasketVerse {
   id: string;
@@ -13,6 +14,7 @@ interface BasketVerse {
   verse_number: number;
   text_arabic: string;
   surah_id: number;
+  surah_name?: string;
   created_at: string;
 }
 
@@ -34,6 +36,7 @@ export default function BasketPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'presentation'>('list');
+  const [previousOrder, setPreviousOrder] = useState<BasketVerse[]>([]);
 
   useEffect(() => {
     if (!basketId) return;
@@ -74,9 +77,15 @@ export default function BasketPage() {
           .eq('basket_id', basketId)
           .order('created_at', { ascending: true });
           
+        // Format verses data to include surah info
+        const formattedVerses = versesData?.map(verse => ({
+          ...verse,
+          surah_name: getSurahName(verse.surah_id)
+        })) || [];
+          
         if (versesError) throw versesError;
         
-        setVerses(versesData || []);
+        setVerses(formattedVerses);
         
       } catch (error: unknown) {
         console.error('Error fetching basket data:', error);
@@ -139,6 +148,59 @@ export default function BasketPage() {
     }
   };
 
+  const shuffleVerses = () => {
+    if (verses.length < 2) return; // Pas besoin de mélanger s'il y a moins de 2 versets
+    
+    // Sauvegarder l'ordre actuel pour pouvoir le restaurer si nécessaire
+    setPreviousOrder([...verses]);
+    
+    // Créer une copie du tableau à mélanger
+    const shuffled = [...verses];
+    let currentIndex = shuffled.length;
+    
+    // Algorithme de Fisher-Yates modifié pour éviter les séquences identiques
+    while (currentIndex > 0) {
+      // Générer un index aléatoire différent de l'index actuel
+      let randomIndex;
+      do {
+        randomIndex = Math.floor(Math.random() * currentIndex);
+      } while (randomIndex === currentIndex - 1 && currentIndex > 1);
+      
+      currentIndex--;
+      
+      // Échanger les éléments
+      [shuffled[currentIndex], shuffled[randomIndex]] = 
+        [shuffled[randomIndex], shuffled[currentIndex]];
+    }
+    
+    // Vérifier que le mélange est différent du précédent
+    const isSameAsPrevious = shuffled.every((verse, index) => 
+      verses[index]?.id === verse.id
+    );
+    
+    // Si c'est le même ordre, on échange les deux premiers éléments
+    if (isSameAsPrevious && shuffled.length > 1) {
+      [shuffled[0], shuffled[1]] = [shuffled[1], shuffled[0]];
+    }
+    
+    setVerses(shuffled);
+    setCurrentVerseIndex(0); // Réinitialiser l'index pour le mode présentation
+    setMessage({ text: 'Les versets ont été mélangés', type: 'success' });
+    
+    // Cacher le message après 3 secondes
+    setTimeout(() => setMessage(null), 3000);
+  };
+
+  const undoShuffle = () => {
+    if (previousOrder.length > 0) {
+      setVerses(previousOrder);
+      setPreviousOrder([]);
+      setCurrentVerseIndex(0);
+      setMessage({ text: 'Dernier mélange annulé', type: 'success' });
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
   if (isLoading) {
     return (
       <AppLayout>
@@ -154,13 +216,37 @@ export default function BasketPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold">{basket?.name}</h1>
-          
-          <Link
-            href="/baskets"
-            className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition"
-          >
-            Retour aux paniers
-          </Link>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={shuffleVerses}
+              disabled={verses.length < 2}
+              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium ${
+                verses.length < 2 
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                  : 'bg-purple-600 text-white hover:bg-purple-700'
+              }`}
+              title="Mélanger les versets"
+            >
+              <Shuffle size={16} className="mr-1" />
+              <span className="hidden sm:inline">Mélanger</span>
+            </button>
+            {previousOrder.length > 0 && (
+              <button
+                onClick={undoShuffle}
+                className="flex items-center px-3 py-2 bg-gray-200 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-300"
+                title="Annuler le dernier mélange"
+              >
+                <X size={16} className="mr-1" />
+                <span className="hidden sm:inline">Annuler</span>
+              </button>
+            )}
+            <Link
+              href="/baskets"
+              className="px-4 py-2 bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+            >
+              Retour aux paniers
+            </Link>
+          </div>
         </div>
         
         {/* Messages */}
@@ -219,7 +305,7 @@ export default function BasketPage() {
                       {verses.map((verse, index) => (
                         <tr key={verse.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                           <td className="py-3 px-4">
-                            {verse.verse_number}
+                            {verse.surah_name}, verset {verse.verse_number}
                           </td>
                           <td className="py-3 px-4 arabic text-right max-w-[200px] truncate" dir="rtl">
                             {verse.text_arabic}
@@ -293,7 +379,7 @@ export default function BasketPage() {
                   <div className="absolute bottom-4 right-4 text-5xl text-purple-200 dark:text-purple-800 opacity-50">&rdquo;</div>
                   
                   <div className="mb-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                    Verset {verses[currentVerseIndex]?.verse_number}
+                    {verses[currentVerseIndex]?.surah_name}, verset {verses[currentVerseIndex]?.verse_number}
                   </div>
                   
                   <p className="arabic text-center text-3xl leading-relaxed my-8 px-8">

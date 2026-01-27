@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             
             console.log('Token de rafraîchissement invalide lors de l\'initialisation, nettoyage de session');
             // Nettoyer complètement les données de session locales
-            localStorage.removeItem('supabase.auth.token');
+            localStorage.removeItem('verses_auth_token');
             setSession(null);
             setUser(null);
           }
@@ -93,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           
           // Nettoyer les données locales lors de la déconnexion
-          localStorage.removeItem('supabase.auth.token');
+          localStorage.removeItem('verses_auth_token');
           
           // Rediriger vers la page d'accueil après déconnexion
           if (pathname !== '/') {
@@ -127,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       console.log('Tentative de déconnexion...');
       setIsLoading(true);
-      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      const { error } = await supabase.auth.signOut();
       
       if (error) {
         console.error('Erreur lors de la déconnexion:', error);
