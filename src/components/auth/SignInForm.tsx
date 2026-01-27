@@ -29,14 +29,22 @@ export default function SignInForm() {
         throw error;
       }
       
-      if (data.session) {
+      if (data?.session) {
         router.push('/baskets');
+        router.refresh(); // Rafraîchir pour mettre à jour le contexte d'authentification
       }
     } catch (error) {
       let errorMessage = 'Une erreur est survenue lors de la connexion';
       
       if (error instanceof AuthError) {
         errorMessage = error.message;
+        
+        // Gestion spécifique des erreurs courantes
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Email ou mot de passe incorrect';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Veuillez confirmer votre email avant de vous connecter';
+        }
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
