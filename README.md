@@ -1,5 +1,7 @@
 # Verses - Application Coranique PWA
 
+https://verses-ferses.vercel.app/
+
 Verses est une Progressive Web App (PWA) dédiée à l'exploration et la gestion personnalisée des versets du Coran, développée avec Next.js et Supabase.
 
 ## Fonctionnalités
